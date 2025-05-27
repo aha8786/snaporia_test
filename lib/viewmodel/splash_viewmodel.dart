@@ -15,7 +15,6 @@ class SplashViewModel extends ChangeNotifier {
   // 초기화 관련 플래그
   bool _isDelayCompleted = false;
   bool _isPermissionChecked = false;
-  // String? _errorMessage;  // 사용하지 않는 필드 주석 처리
 
   // 디바이스 정보 유틸리티
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
@@ -37,14 +36,6 @@ class SplashViewModel extends ChangeNotifier {
   void setLoading(bool isLoading) {
     _isLoading = isLoading;
     notifyListeners();
-  }
-
-  // 초기화 작업 수행
-  Future<void> initialize() async {
-    // initializeApp 호출
-    // 구현에 맞게 아무 context나 전달 (실제로는 호출 시 context를 전달 받아야 함)
-    // 이 메서드는 더이상 사용되지 않음
-    debugPrint('initialize는 더 이상 사용되지 않습니다. initializeApp을 사용하세요.');
   }
 
   Future<void> initializeApp(BuildContext context) async {

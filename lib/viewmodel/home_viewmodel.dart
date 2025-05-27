@@ -60,7 +60,6 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// 색상 키워드 (검색용)
-  // final String _colorKeyword = '';  // 사용하지 않는 필드 주석 처리
   String? get _colorKeyword {
     if (_selectedColor == null) return null;
 
@@ -108,13 +107,10 @@ class HomeViewModel extends ChangeNotifier {
   bool get isScanning => _dbHelper.isScanning;
 
   /// 현재 페이지
-  // int _currentPage = 0;
 
   /// 페이지당 항목 수
-  // final int _itemsPerPage = 20;
 
   /// 현재 스캔 배치
-  // int _currentBatch = 0;  // 사용하지 않는 필드 주석 처리
 
   /// 라벨링 작업 진행률
   final ValueNotifier<double> labelingProgress = ValueNotifier<double>(0.0);
@@ -376,7 +372,6 @@ class HomeViewModel extends ChangeNotifier {
       _isInitialized = false;
 
       // 진행 상태 초기화
-      // _currentBatch = 0;  // 사용하지 않는 필드 주석 처리
       scanProgress.value = 0.0;
 
       // 데이터베이스의 사진 데이터 초기화
@@ -423,7 +418,6 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     try {
-      // _currentBatch = 0;  // 사용하지 않는 필드 주석 처리
       scanProgress.value = 0.0;
       notifyListeners();
 

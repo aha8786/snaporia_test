@@ -41,9 +41,6 @@ class DatabaseHelper {
   /// 소배치 크기 (병렬처리용)
   // final int _smallBatchSize = 50;  // 사용하지 않는 필드 주석 처리
 
-  /// 마지막으로 처리한 페이지
-  // final int _lastProcessedPage = 0;  // 사용하지 않는 필드 주석 처리
-
   /// 최대 재시도 횟수
   final int _maxRetries = 3;
 
