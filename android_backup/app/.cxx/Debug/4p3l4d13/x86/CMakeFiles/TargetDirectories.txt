@@ -1,0 +1,2 @@
+/Users/parksanghyup/development/test/snaporia/android/app/.cxx/Debug/4p3l4d13/x86/CMakeFiles/edit_cache.dir
+/Users/parksanghyup/development/test/snaporia/android/app/.cxx/Debug/4p3l4d13/x86/CMakeFiles/rebuild_cache.dir
