@@ -10,6 +10,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter/rendering.dart';
 import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 /// 홈 화면 ViewModel
 class HomeViewModel extends ChangeNotifier {
@@ -125,6 +128,114 @@ class HomeViewModel extends ChangeNotifier {
   /// 라벨링 검색 중 여부
   bool _isLabelingSearch = false;
   bool get isLabelingSearch => _isLabelingSearch;
+
+  bool _isProcessing = false;
+  int _totalPhotos = 0;
+  int _processedPhotos = 0;
+  String _currentStatus = '';
+  List<String> _processingLogs = [];
+
+  /// 이미지 라벨링 처리 (이것만 남김)
+  Future<String> _processImageLabeling(PhotoModel photo) async {
+    ImageLabeler? imageLabeler;
+    try {
+      print('1️⃣ 이미지 디코딩 시작: \\${photo.path}');
+      final file = File(photo.path);
+      if (!await file.exists()) throw Exception('이미지 파일을 찾을 수 없습니다.');
+      final bytes = await file.readAsBytes();
+      final image = img.decodeImage(bytes);
+      if (image == null) throw Exception('이미지를 디코딩할 수 없습니다.');
+      final resizedImage = img.copyResize(
+        image,
+        width: image.width > 400 ? 400 : image.width,
+        height: image.width > 400
+            ? (400 * image.height / image.width).round()
+            : image.height,
+      );
+      final processedBytes =
+          Uint8List.fromList(img.encodeJpg(resizedImage, quality: 85));
+      print('2️⃣ ML Kit 호출 시작');
+      imageLabeler = ImageLabeler(
+        options: ImageLabelerOptions(
+          confidenceThreshold: 0.6,
+        ),
+      );
+      final inputImage = InputImage.fromFilePath(photo.path);
+      final labels = await imageLabeler.processImage(inputImage);
+      print('2️⃣ ML Kit 호출 완료: 라벨 개수 = \\${labels.length}');
+      final highConfidenceLabels = labels
+          .where((label) => label.confidence > 0.6)
+          .map((label) =>
+              '\\${label.label}(\\${label.confidence.toStringAsFixed(2)})')
+          .toList();
+      return highConfidenceLabels.join(', ');
+    } catch (e, stack) {
+      print('❌ _processImageLabeling 예외 발생: \\${e}');
+      print('❌ 스택트레이스: \\${stack}');
+      return '';
+    } finally {
+      imageLabeler?.close();
+    }
+  }
+
+  /// 라벨링 작업 시작 (이것만 남김)
+  Future<void> startLabeling() async {
+    if (_isLabeling) {
+      debugPrint('⚠️ 이미 라벨링 작업이 진행 중입니다.');
+      return;
+    }
+    debugPrint('🚀 라벨링 작업 시작');
+    _isLabeling = true;
+    _shouldStopLabeling = false;
+    notifyListeners();
+    try {
+      final totalPhotos = await _dbHelper.getTotalPhotosCount();
+      int processedCount = await _dbHelper.getLabeledPhotosCount();
+      debugPrint(
+          '📊 전체 사진 수: \\${totalPhotos}, 이미 라벨링된 사진 수: \\${processedCount}');
+      if (totalPhotos == 0) {
+        debugPrint('⚠️ 라벨링할 사진이 없습니다.');
+        return;
+      }
+      while (!_shouldStopLabeling) {
+        final photos = await _dbHelper.getPhotosNeedingLabeling(limit: 10);
+        if (photos.isEmpty) {
+          debugPrint(
+              '✅ 라벨링 작업이 완료되었습니다. 총 \\${processedCount}개의 사진이 라벨링되었습니다.');
+          break;
+        }
+        debugPrint('📸 \\${photos.length}개의 사진에 대해 라벨링을 시작합니다.');
+        for (final photo in photos) {
+          if (_shouldStopLabeling) {
+            debugPrint('⚠️ 라벨링 작업이 중단되었습니다.');
+            break;
+          }
+          try {
+            debugPrint('🔍 사진 ID \\${photo.id} 라벨링 시작');
+            final labels = await _processImageLabeling(photo);
+            print('3️⃣ 라벨 저장 시작: photoId=\\${photo.id}, labels=\\${labels}');
+            await _dbHelper.updatePhotoLabels(photo.id, labels);
+            print('3️⃣ 라벨 저장 완료: photoId=\\${photo.id}');
+            processedCount++;
+            labelingProgress.value = processedCount / totalPhotos;
+            debugPrint(
+                '📈 라벨링 진행률: \\${(labelingProgress.value * 100).toStringAsFixed(1)}%');
+          } catch (e, stack) {
+            debugPrint('❌ 사진 라벨링 실패 (ID: \\${photo.id}): \\${e}');
+            print('❌ 사진 라벨링 실패 스택트레이스: \\${stack}');
+          }
+        }
+      }
+    } finally {
+      _isLabeling = false;
+      notifyListeners();
+      debugPrint('🏁 라벨링 작업 종료');
+    }
+  }
+
+  void stopLabeling() {
+    _shouldStopLabeling = true;
+  }
 
   /// 선택 모드 설정
   void setSelectionMode(bool value) {
@@ -640,150 +751,6 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     await resetAndReload();
-  }
-
-  /// 라벨링 작업 시작
-  Future<void> startLabeling() async {
-    if (_isLabeling) {
-      debugPrint('⚠️ 이미 라벨링 작업이 진행 중입니다.');
-      return;
-    }
-
-    debugPrint('🚀 라벨링 작업 시작');
-    _isLabeling = true;
-    _shouldStopLabeling = false;
-    notifyListeners();
-
-    try {
-      final totalPhotos = await _dbHelper.getTotalPhotosCount();
-      int processedCount = await _dbHelper.getLabeledPhotosCount();
-      debugPrint('📊 전체 사진 수: $totalPhotos, 이미 라벨링된 사진 수: $processedCount');
-
-      // 라벨링이 필요한 사진이 있는지 확인
-      if (totalPhotos == 0) {
-        debugPrint('⚠️ 라벨링할 사진이 없습니다.');
-        return;
-      }
-
-      while (!_shouldStopLabeling) {
-        // 라벨링이 필요한 사진 가져오기
-        final photos = await _dbHelper.getPhotosNeedingLabeling(limit: 5);
-        if (photos.isEmpty) {
-          debugPrint('✅ 라벨링 작업이 완료되었습니다. 총 ${processedCount}개의 사진이 라벨링되었습니다.');
-          break;
-        }
-
-        debugPrint('📸 ${photos.length}개의 사진에 대해 라벨링을 시작합니다.');
-
-        // 각 사진에 대해 라벨링 수행
-        for (final photo in photos) {
-          if (_shouldStopLabeling) {
-            debugPrint('⚠️ 라벨링 작업이 중단되었습니다.');
-            break;
-          }
-
-          try {
-            debugPrint('🔍 사진 ID ${photo.id} 라벨링 시작');
-            // 이미지 라벨링 수행
-            final labels = await _processImageLabeling(photo);
-            debugPrint('🏷️ 사진 ID ${photo.id} 라벨링 결과: $labels');
-
-            // 라벨 업데이트
-            await _dbHelper.updatePhotoLabels(photo.id, labels);
-
-            // 진행률 업데이트
-            processedCount++;
-            labelingProgress.value = processedCount / totalPhotos;
-            debugPrint(
-                '📈 라벨링 진행률: ${(labelingProgress.value * 100).toStringAsFixed(1)}%');
-          } catch (e) {
-            debugPrint('❌ 사진 라벨링 실패 (ID: ${photo.id}): $e');
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ 라벨링 작업 중 오류 발생: $e');
-    } finally {
-      _isLabeling = false;
-      notifyListeners();
-      debugPrint('🏁 라벨링 작업 종료');
-    }
-  }
-
-  /// 라벨링 작업 중지
-  void stopLabeling() {
-    _shouldStopLabeling = true;
-  }
-
-  /// 이미지 라벨링 처리
-  Future<String> _processImageLabeling(PhotoModel photo) async {
-    ImageLabeler? imageLabeler;
-    try {
-      debugPrint('📂 이미지 파일 로드 시도: ${photo.path}');
-      // 1. 이미지 파일 로드
-      final file = File(photo.path);
-      if (!await file.exists()) {
-        throw Exception('이미지 파일을 찾을 수 없습니다.');
-      }
-
-      // 2. 이미지 크기 조정 (성능 최적화)
-      final bytes = await file.readAsBytes();
-      final image = img.decodeImage(bytes);
-      if (image == null) {
-        throw Exception('이미지를 디코딩할 수 없습니다.');
-      }
-
-      debugPrint('🔧 ML Kit 이미지 라벨러 초기화');
-      // 3. ML Kit 이미지 라벨러 초기화
-      imageLabeler = ImageLabeler(options: ImageLabelerOptions());
-
-      // 4. 이미지 라벨링 수행
-      debugPrint('🔍 이미지 라벨링 시작');
-      final inputImage = InputImage.fromFilePath(photo.path);
-      final labels = await imageLabeler.processImage(inputImage);
-      debugPrint('📊 라벨링 결과: ${labels.length}개의 라벨 발견');
-
-      // 5. 신뢰도가 높은 라벨만 추출 (0.6 이상)
-      final highConfidenceLabels = labels
-          .where((label) => label.confidence > 0.6)
-          .map((label) =>
-              '${label.label}(${label.confidence.toStringAsFixed(2)})')
-          .toList();
-      debugPrint('🎯 신뢰도 높은 라벨: ${highConfidenceLabels.join(', ')}');
-
-      // 6. 쉼표로 구분된 문자열로 변환
-      return highConfidenceLabels.join(', ');
-    } catch (e) {
-      debugPrint('❌ 이미지 라벨링 실패: $e');
-      return ''; // 실패 시 빈 문자열 반환
-    } finally {
-      // 7. 라벨러 해제 (finally 블록에서 항상 실행)
-      imageLabeler?.close();
-      debugPrint('🧹 이미지 라벨러 해제 완료');
-    }
-  }
-
-  /// 이미지 크기 조정 헬퍼 함수
-  Future<ui.Image> resizeImage(ui.Image image, {int maxWidth = 800}) async {
-    if (image.width <= maxWidth) return image;
-
-    final ratio = maxWidth / image.width;
-    final newWidth = maxWidth;
-    final newHeight = (image.height * ratio).round();
-
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final paint = Paint()..filterQuality = FilterQuality.medium;
-
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      Rect.fromLTWH(0, 0, newWidth.toDouble(), newHeight.toDouble()),
-      paint,
-    );
-
-    final picture = recorder.endRecording();
-    return await picture.toImage(newWidth, newHeight);
   }
 
   /// 한글 검색어를 영어 라벨로 변환

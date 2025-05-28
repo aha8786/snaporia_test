@@ -12,6 +12,8 @@ import '../model/photo_model.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:ui';
 import 'package:image/image.dart' as img;
+import 'dart:typed_data';
+import 'dart:math';
 
 /// 데이터베이스 헬퍼 클래스
 class DatabaseHelper {
@@ -361,52 +363,25 @@ class DatabaseHelper {
         // 진행률 업데이트 (배치 시작)
         scanProgress.value = processedCount / totalCount;
 
-        // 대표 색상 병렬 추출 (10개 단위)
-        final colorFutures = assets.map((asset) async {
-          try {
-            final file = await asset.file;
-            if (file == null) return 'FFFFFF';
-            // 썸네일 데이터 추출(작은 크기)
-            final thumbnail = await asset.thumbnailData;
-            if (thumbnail == null) return 'FFFFFF';
-            final image = await decodeImageFromList(thumbnail);
-            final palette =
-                await PaletteGenerator.fromImage(image, maximumColorCount: 1);
-            final color = palette.dominantColor?.color;
-            if (color == null) return 'FFFFFF';
-            return color.value.toRadixString(16).padLeft(8, '0').substring(2);
-          } catch (e) {
-            debugPrint('색상 추출 실패: $e');
-            return 'FFFFFF';
+        // 대표 색상 병렬 추출 (최대 4개씩 compute로)
+        final colorFutures = <Future<String>>[];
+        for (final asset in assets) {
+          final thumbnail = await asset.thumbnailData;
+          if (thumbnail == null) {
+            colorFutures.add(Future.value('FFFFFF'));
+          } else {
+            colorFutures.add(compute(extractDominantColor, thumbnail));
           }
-        }).toList();
-
+        }
+        // 최대 4개씩 병렬로 실행
         final colors = <String>[];
-        for (var i = 0; i < colorFutures.length; i += 10) {
-          try {
-            final batch = colorFutures.skip(i).take(10);
-            final results = await Future.wait(batch);
-            colors.addAll(results.map((c) => c ?? 'FFFFFF'));
-            // 10개 단위 처리마다 진행률 업데이트
-            final subBatchProgress = (processedCount + i + 10) / totalCount;
-            scanProgress.value =
-                subBatchProgress > 1.0 ? 1.0 : subBatchProgress;
-          } catch (e) {
-            debugPrint('배치 처리 실패 (${i}~${i + 10}): $e');
-            // 실패한 배치 3번까지 재시도
-            for (int retry = 0; retry < 3; retry++) {
-              try {
-                await Future.delayed(Duration(seconds: 1));
-                final batch = colorFutures.skip(i).take(10);
-                final results = await Future.wait(batch);
-                colors.addAll(results.map((c) => c ?? 'FFFFFF'));
-                break;
-              } catch (retryError) {
-                debugPrint('재시도 ${retry + 1} 실패: $retryError');
-                if (retry == 2) throw retryError;
-              }
-            }
-          }
+        for (var i = 0; i < colorFutures.length; i += 4) {
+          final batch = colorFutures.skip(i).take(4);
+          final results = await Future.wait(batch);
+          colors.addAll(results);
+          // 4개 단위 처리마다 진행률 업데이트
+          final subBatchProgress = (processedCount + i + 4) / totalCount;
+          scanProgress.value = subBatchProgress > 1.0 ? 1.0 : subBatchProgress;
         }
 
         // 트랜잭션으로 배치 처리
@@ -682,4 +657,29 @@ class DatabaseHelper {
       whereArgs: [path],
     );
   }
+}
+
+String extractDominantColor(Uint8List imageBytes) {
+  final img.Image? image = img.decodeImage(imageBytes);
+  if (image == null) return 'FFFFFF';
+
+  // 군집 수 1개(K=1)로 전체 픽셀의 평균색을 대표색으로 사용 (PaletteGenerator.maximumColorCount: 1과 동일)
+  int rSum = 0, gSum = 0, bSum = 0, count = 0;
+  for (int y = 0; y < image.height; y++) {
+    for (int x = 0; x < image.width; x++) {
+      final p = image.getPixel(x, y);
+      rSum += p.r.toInt();
+      gSum += p.g.toInt();
+      bSum += p.b.toInt();
+      count++;
+    }
+  }
+  if (count == 0) return 'FFFFFF';
+  final r = (rSum ~/ count).clamp(0, 255);
+  final g = (gSum ~/ count).clamp(0, 255);
+  final b = (bSum ~/ count).clamp(0, 255);
+  final color = Color.fromARGB(255, r, g, b);
+  final hex =
+      color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+  return hex;
 }

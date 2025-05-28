@@ -400,71 +400,149 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 검색 다이얼로그 표시
   void _showSearchDialog() {
     final viewModel = context.read<HomeViewModel>();
-    String searchKeyword = '';
-
+    final TextEditingController controller = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('키워드 검색'),
-        content: SingleChildScrollView(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        content: SizedBox(
+          width: 320,
+          height: 200,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                decoration: const InputDecoration(
-                  hintText: '검색어를 입력하세요',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  searchKeyword = value;
-                },
-              ),
-              const SizedBox(height: 8),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "1) 키워드로만 입력해주세요 (예: 시계, 오토바이)",
-                  style: TextStyle(
-                    fontFamily: 'Paperlogy',
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+              const Text(
+                '키워드 검색',
+                style: TextStyle(
+                  fontFamily: 'Paperlogy',
+                  fontWeight: FontWeight.w400,
+                  fontSize: 22,
+                  height: 1.1,
+                  color: Colors.black,
                 ),
               ),
-              const SizedBox(height: 4),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "2) 영어로 입력할 경우 소문자로 입력해주세요 (예: car, dog)",
-                  style: TextStyle(
-                    fontFamily: 'Paperlogy',
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Color(0xFFF8F9FE),
+                  borderRadius: BorderRadius.circular(18),
                 ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(Icons.search,
+                          color: Color(0xFF2F3036), size: 18),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w400,
+                          fontSize: 15,
+                          height: 1.4,
+                          color: Color(0xFF8F9098),
+                        ),
+                        decoration: const InputDecoration(
+                          isCollapsed: true,
+                          border: InputBorder.none,
+                          hintText: '키워드를 입력하세요.',
+                          hintStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w400,
+                            fontSize: 15,
+                            height: 1.4,
+                            color: Color(0xFF8F9098),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                '1.) 키워드로만 입력해주세요 (예: 시계, 오토바이)\n2.) 영어로 입력할 경우 소문자로만 입력해주세요 (예 : car, dog)',
+                style: TextStyle(
+                  fontFamily: 'Paperlogy',
+                  fontWeight: FontWeight.w300,
+                  fontSize: 10.5,
+                  height: 1.7,
+                  color: Color(0xFF6B6B6B),
+                ),
+              ),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(80, 48),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      side: const BorderSide(
+                          color: Color(0xFF006FFD), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      '취소',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        height: 1.2,
+                        color: Color(0xFF006FFD),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      final text = controller.text;
+                      if (text.isNotEmpty) {
+                        viewModel.setSearchKeyword(text);
+                      }
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(80, 48),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 12),
+                      backgroundColor: const Color(0xFF006FFD),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      '검색',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        height: 1.2,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () {
-              // 키워드가 비어있지 않으면 설정
-              if (searchKeyword.trim().isNotEmpty) {
-                viewModel.setSearchKeyword(searchKeyword.trim());
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('검색'),
-          ),
-        ],
       ),
     );
   }
