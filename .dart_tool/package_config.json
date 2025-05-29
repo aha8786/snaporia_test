@@ -890,13 +890,13 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "Snaporia1",
+      "name": "Snaporia",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "3.2"
     }
   ],
-  "generated": "2025-05-27T17:00:53.800872Z",
+  "generated": "2025-05-29T04:46:35.881228Z",
   "generator": "pub",
   "generatorVersion": "3.7.2",
   "flutterRoot": "file:///Users/parksanghyup/development/flutter",

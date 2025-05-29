@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../utils/app_colors.dart';
-import '../../model/color_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodel/home_viewmodel.dart';
+import '../../model/color_model.dart';
 
 /// 날짜 필터 버튼 위젯
 class FilterButtons extends StatelessWidget {

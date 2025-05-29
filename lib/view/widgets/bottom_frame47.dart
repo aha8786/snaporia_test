@@ -58,11 +58,50 @@ class BottomFrame47 extends StatelessWidget {
                   selected: selectedIndex == 2,
                 ),
                 const SizedBox(width: 53),
-                _BottomIconButton(
-                  icon: Icons.search,
-                  label: '검 색',
-                  onTap: onSearchTap,
-                  selected: selectedIndex == 3,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _BottomIconButton(
+                      icon: Icons.search,
+                      label: '검 색',
+                      onTap: onSearchTap,
+                      selected: selectedIndex == 3,
+                    ),
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        width: 22,
+                        height: 15,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF21D1FF), Color(0xFF0578FF)],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              offset: const Offset(-2, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'AI',
+                            style: TextStyle(
+                              fontFamily: 'Paperlogy',
+                              fontWeight: FontWeight.w700,
+                              fontSize: 10,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

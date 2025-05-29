@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 
 class LoadingSpinner extends StatefulWidget {
-  const LoadingSpinner({super.key});
+  final double? progressPercent; // 0~100, null이면 미표시
+  final VoidCallback? onClose;
+  final VoidCallback? onComplete;
+  const LoadingSpinner(
+      {super.key, this.progressPercent, this.onClose, this.onComplete});
 
   @override
   State<LoadingSpinner> createState() => _LoadingSpinnerState();
@@ -38,6 +42,17 @@ class _LoadingSpinnerState extends State<LoadingSpinner>
   }
 
   @override
+  void didUpdateWidget(covariant LoadingSpinner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 진행률이 100%가 되면 onComplete 콜백 호출
+    if (widget.progressPercent != null && widget.progressPercent! >= 100) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onComplete?.call();
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -49,91 +64,115 @@ class _LoadingSpinnerState extends State<LoadingSpinner>
       color: Colors.white,
       width: double.infinity,
       height: double.infinity,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Column(
+      child: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '사진 분석중',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'paperlogy',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 18,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0),
+                  child: Text(
+                    'AI가 열심히 사진을 분석 중이에요!\n조금만 기다려 주세요.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'paperlogy',
+                      fontWeight: FontWeight.w500,
+                      fontSize: 18,
+                      color: Colors.black,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  '잠시만 기다려주세요...',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontFamily: 'paperlogy',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 18,
-                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double size =
+                        min(constraints.maxWidth, constraints.maxHeight) * 0.7;
+                    return SizedBox(
+                      width: size,
+                      height: size,
+                      child: AnimatedBuilder(
+                        animation: _controller,
+                        builder: (context, child) {
+                          final t = _controller.value;
+                          return Stack(
+                            children: [
+                              for (final c in circles)
+                                Positioned(
+                                  left: size / 2 +
+                                      cos(c.angle + t * 2 * pi + c.phase) *
+                                          size *
+                                          c.baseRadius -
+                                      size * c.size / 2 +
+                                      sin(t * 2 * pi + c.phase) *
+                                          size *
+                                          c.animRadius,
+                                  top: size / 2 +
+                                      sin(c.angle + t * 2 * pi + c.phase) *
+                                          size *
+                                          c.baseRadius -
+                                      size * c.size / 2 +
+                                      cos(t * 2 * pi + c.phase) *
+                                          size *
+                                          c.animRadius,
+                                  width: size * c.size,
+                                  height: size * c.size,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Color(0xFF21D1FF),
+                                          Color(0xFF0578FF)
+                                        ],
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    );
+                  },
                 ),
-                SizedBox(height: 32),
               ],
             ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final double size =
-                    min(constraints.maxWidth, constraints.maxHeight) * 0.7;
-                return SizedBox(
-                  width: size,
-                  height: size,
-                  child: AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) {
-                      final t = _controller.value;
-                      return Stack(
-                        children: [
-                          for (final c in circles)
-                            Positioned(
-                              left: size / 2 +
-                                  cos(c.angle + t * 2 * pi + c.phase) *
-                                      size *
-                                      c.baseRadius -
-                                  size * c.size / 2 +
-                                  sin(t * 2 * pi + c.phase) *
-                                      size *
-                                      c.animRadius,
-                              top: size / 2 +
-                                  sin(c.angle + t * 2 * pi + c.phase) *
-                                      size *
-                                      c.baseRadius -
-                                  size * c.size / 2 +
-                                  cos(t * 2 * pi + c.phase) *
-                                      size *
-                                      c.animRadius,
-                              width: size * c.size,
-                              height: size * c.size,
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      Color(0xFF21D1FF),
-                                      Color(0xFF0578FF)
-                                    ],
-                                  ),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
+          ),
+          if (widget.progressPercent != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: MediaQuery.of(context).size.height * 0.68,
+              child: Center(
+                child: Text(
+                  '진행률 ${widget.progressPercent!.toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    fontFamily: 'paperlogy',
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    color: Colors.black,
+                    decoration: TextDecoration.none,
                   ),
-                );
-              },
+                ),
+              ),
             ),
-          ],
-        ),
+          // 우측 상단 X 닫기 버튼
+          Positioned(
+            top: 32,
+            right: 24,
+            child: GestureDetector(
+              onTap: widget.onClose,
+              child: const Icon(
+                Icons.close,
+                size: 32,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

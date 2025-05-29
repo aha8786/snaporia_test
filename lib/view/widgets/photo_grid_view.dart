@@ -77,30 +77,55 @@ class PhotoGridView extends StatelessWidget {
   }
 
   Widget _buildPhotoItem(PhotoModel photo) {
-    return GestureDetector(
-      onTap: () {
-        onPhotoTap(photo);
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 사진 이미지
-          Hero(
-            tag: 'photo_${photo.id}',
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.file(
-                File(photo.path),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  debugPrint('이미지 로드 실패: $error');
-                  return _buildErrorPlaceholder();
-                },
+    return Consumer<HomeViewModel>(
+      builder: (context, viewModel, child) {
+        final bool isSelectionMode = viewModel.isSelectionMode;
+        final bool isSelected = viewModel.isPhotoSelected(photo.id);
+        return GestureDetector(
+          onTap: () {
+            onPhotoTap(photo);
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Hero(
+                tag: 'photo_${photo.id}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(photo.path),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('이미지 로드 실패: $error');
+                      return _buildErrorPlaceholder();
+                    },
+                  ),
+                ),
               ),
-            ),
+              // 선택 모드에서 선택된 경우 오버레이 및 체크 아이콘 표시
+              if (isSelectionMode)
+                AnimatedOpacity(
+                  opacity: isSelected ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeInOut,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.35),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.blueAccent,
+                        size: 44,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

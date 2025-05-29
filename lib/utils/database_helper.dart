@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:palette_generator/palette_generator.dart';
-import 'dart:io';
+// import 'package:palette_generator/palette_generator.dart';
+// import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../utils/color_utils.dart';
@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:ui';
 import 'package:image/image.dart' as img;
 import 'dart:typed_data';
-import 'dart:math';
+// import 'dart:math';
 
 /// 데이터베이스 헬퍼 클래스
 class DatabaseHelper {
@@ -44,7 +44,7 @@ class DatabaseHelper {
   // final int _smallBatchSize = 50;  // 사용하지 않는 필드 주석 처리
 
   /// 최대 재시도 횟수
-  final int _maxRetries = 3;
+  // final int _maxRetries = 3;  // 사용하지 않는 필드 주석 처리
 
   /// 데이터베이스 인스턴스
   Database? _database;
@@ -150,9 +150,6 @@ class DatabaseHelper {
               if (photo['color'] != null) {
                 try {
                   final String colorHex = photo['color'] as String;
-                  final double hueValue = ColorUtils.hexToHue(colorHex);
-
-                  // 새로운 로직으로 대표 색상 이름들 계산
                   final List<String> colorNames =
                       ColorUtils.getRepresentativeColors(colorHex);
 
@@ -396,13 +393,11 @@ class DatabaseHelper {
             String hueNames = '';
             try {
               // 헥스 색상 코드에서 Hue 값 계산
-              final double hueValue = ColorUtils.hexToHue(colorHex);
-              // Hue 값에 따른 대표 색상 이름들 가져오기
               final List<String> colorNames =
                   ColorUtils.getRepresentativeColors(colorHex);
               // 색상 이름들을 쉼표로 구분해서 저장 (경계에 있으면 여러 색상명 저장)
               hueNames = colorNames.join(',');
-              debugPrint('색상 추출: $colorHex -> Hue: $hueValue -> 색상: $hueNames');
+              debugPrint('색상 추출: $colorHex -> Hue: $hueNames');
             } catch (e) {
               debugPrint('Hue 계산 실패: $e');
             }

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../widgets/filter_buttons.dart';
 import '../widgets/photo_grid_view.dart';
 import '../../viewmodel/home_viewmodel.dart';
 import '../../model/photo_model.dart';
@@ -12,6 +11,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:latlong2/latlong.dart';
+import '../widgets/custom_bottom_sheet.dart';
+import '../widgets/loading_spinner.dart';
 
 /// 홈 화면
 class HomeScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
 
   int _bottomSelectedIndex = -1; // -1: 아무것도 선택 안함
+  bool _isLoadingSpinnerVisible = false;
 
   @override
   void initState() {
@@ -71,13 +73,26 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Consumer<HomeViewModel>(
       builder: (context, viewModel, child) {
+        // 라벨링 진행률 구하기
+        final double labelingProgress = viewModel.labelingProgress.value;
+        final bool isLabelingDone = labelingProgress >= 1.0;
+        // 로딩 스피너 100% 완료 시 검색 다이얼로그 띄우기
+        if (_isLoadingSpinnerVisible && isLabelingDone) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.of(context, rootNavigator: true).pop(); // 로딩 스피너 닫기
+              setState(() => _isLoadingSpinnerVisible = false);
+              _showSearchDialog();
+            }
+          });
+        }
         return Scaffold(
           appBar: AppBar(
             centerTitle: false,
             title: viewModel.isSelectionMode
                 ? const SizedBox.shrink()
                 : const Text(
-                    'Snaporia1',
+                    'Snaporia',
                     style: TextStyle(
                       fontFamily: 'Paperlogy',
                       fontWeight: FontWeight.w600,
@@ -328,7 +343,62 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   onSearchTap: () async {
                     setState(() => _bottomSelectedIndex = 3);
-                    _showSearchDialog();
+                    final double labelingProgress =
+                        context.read<HomeViewModel>().labelingProgress.value;
+                    final bool isLabelingDone = labelingProgress >= 1.0;
+                    if (!isLabelingDone) {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => CustomBottomSheet(
+                          onStart: () async {
+                            Navigator.of(context).pop();
+                            setState(() => _isLoadingSpinnerVisible = true);
+                            // 라벨링 시작
+                            await context.read<HomeViewModel>().startLabeling();
+                            // 진행률은 위에서 자동으로 감지
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (_) => ValueListenableBuilder<double>(
+                                valueListenable: context
+                                    .read<HomeViewModel>()
+                                    .labelingProgress,
+                                builder: (context, progress, child) {
+                                  return LoadingSpinner(
+                                    progressPercent: progress * 100,
+                                    onClose: () {
+                                      Navigator.of(context, rootNavigator: true)
+                                          .pop();
+                                      setState(() =>
+                                          _isLoadingSpinnerVisible = false);
+                                    },
+                                    onComplete: () {
+                                      if (Navigator.of(context,
+                                              rootNavigator: true)
+                                          .canPop()) {
+                                        Navigator.of(context,
+                                                rootNavigator: true)
+                                            .pop();
+                                      }
+                                      setState(() =>
+                                          _isLoadingSpinnerVisible = false);
+                                      _showSearchDialog();
+                                    },
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                          onClose: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      );
+                    } else {
+                      _showSearchDialog();
+                    }
                     await Future.delayed(const Duration(milliseconds: 300));
                     setState(() => _bottomSelectedIndex = -1);
                   },
@@ -1073,11 +1143,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 날짜를 포맷팅
-  String _formatDate(DateTime date) {
-    return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
-  }
-
   /// 본문 영역 구성
   Widget _buildBody() {
     return Consumer<HomeViewModel>(
@@ -1432,81 +1497,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     } catch (e) {
       return const Text('색상 정보를 처리할 수 없습니다');
-    }
-  }
-
-  /// 스캔 시작 전 확인 다이얼로그 표시
-  Future<bool> _showResetConfirmDialog(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('사진 다시 스캔'),
-        content: const Text('이미 스캔된 사진이 있습니다. 기존 데이터를 초기화하고 다시 스캔하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('초기화 후 다시 스캔'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
-  }
-
-  /// 스캔 시작 확인 다이얼로그 표시
-  Future<bool> _showScanConfirmDialog(BuildContext context) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('사진 스캔 시작'),
-        content: const Text('기기의 모든 사진을 스캔하여 메타데이터를 추출합니다. 계속하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('스캔 시작'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
-  }
-
-  /// 재스캔 처리 메서드
-  Future<void> _handleRescan(BuildContext context) async {
-    final viewModel = context.read<HomeViewModel>();
-
-    // 이미 스캔된 사진이 있는지 확인
-    final hasPhotos = viewModel.photos.isNotEmpty;
-
-    if (hasPhotos) {
-      // 사진이 있으면 초기화 확인 다이얼로그 표시
-      final resetConfirmed = await _showResetConfirmDialog(context);
-      if (resetConfirmed) {
-        // 초기화 후 스캔 확인 다이얼로그 표시
-        await viewModel.resetPhotos();
-        if (context.mounted) {
-          final scanConfirmed = await _showScanConfirmDialog(context);
-          if (scanConfirmed && context.mounted) {
-            await viewModel.startScan();
-          }
-        }
-      }
-    } else {
-      // 사진이 없으면 바로 스캔 확인 다이얼로그 표시
-      final scanConfirmed = await _showScanConfirmDialog(context);
-      if (scanConfirmed && context.mounted) {
-        await viewModel.startScan();
-      }
     }
   }
 

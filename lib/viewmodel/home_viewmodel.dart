@@ -62,27 +62,6 @@ class HomeViewModel extends ChangeNotifier {
     return photos.every((photo) => _selectedPhotos.contains(photo.id));
   }
 
-  /// 색상 키워드 (검색용)
-  String? get _colorKeyword {
-    if (_selectedColor == null) return null;
-
-    // 간단한 색상 이름 매핑
-    if (_selectedColor == Colors.red || _selectedColor == Colors.pink) {
-      return 'red';
-    } else if (_selectedColor == Colors.blue ||
-        _selectedColor == Colors.lightBlue) {
-      return 'blue';
-    } else if (_selectedColor == Colors.green ||
-        _selectedColor == Colors.lightGreen) {
-      return 'green';
-    } else if (_selectedColor == Colors.yellow ||
-        _selectedColor == Colors.amber) {
-      return 'yellow';
-    } else {
-      return null;
-    }
-  }
-
   /// 사진 목록
   List<PhotoModel> _photos = [];
   List<PhotoModel> get photos => _photos;
@@ -128,12 +107,6 @@ class HomeViewModel extends ChangeNotifier {
   /// 라벨링 검색 중 여부
   bool _isLabelingSearch = false;
   bool get isLabelingSearch => _isLabelingSearch;
-
-  bool _isProcessing = false;
-  int _totalPhotos = 0;
-  int _processedPhotos = 0;
-  String _currentStatus = '';
-  List<String> _processingLogs = [];
 
   /// 이미지 라벨링 처리 (이것만 남김)
   Future<String> _processImageLabeling(PhotoModel photo) async {

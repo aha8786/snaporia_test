@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
 import 'package:device_info_plus/device_info_plus.dart';
 import '../model/permission_status.dart';
-import '../view/main/main_screen.dart';
+import '../view/main/home_screen.dart';
 
 class SplashViewModel extends ChangeNotifier {
   bool _isLoading = true;
@@ -218,7 +218,7 @@ class SplashViewModel extends ChangeNotifier {
   // 메인 화면으로 이동
   void _navigateToHome(BuildContext context) {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const MainScreen()),
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
     );
     debugPrint('메인 화면으로 이동 완료');
   }
