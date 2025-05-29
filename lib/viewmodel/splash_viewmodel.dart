@@ -246,4 +246,9 @@ class SplashViewModel extends ChangeNotifier {
     await ph.openAppSettings();
     debugPrint('앱 설정 열기');
   }
+
+  // 외부에서 영구 거부 안내 다이얼로그를 띄우기 위한 public 메서드
+  void showPermissionGuidePermanent() {
+    _showPermissionGuide(true);
+  }
 }

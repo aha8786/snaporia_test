@@ -18,6 +18,7 @@ import 'package:photo_manager/photo_manager.dart';
 class HomeViewModel extends ChangeNotifier {
   /// DB 헬퍼 인스턴스
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  DatabaseHelper get dbHelper => _dbHelper;
 
   /// 현재 선택된 날짜 범위
   DateTimeRange? _dateRange;

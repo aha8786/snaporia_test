@@ -347,6 +347,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         context.read<HomeViewModel>().labelingProgress.value;
                     final bool isLabelingDone = labelingProgress >= 1.0;
                     if (!isLabelingDone) {
+                      // 진행할 항목(사진)이 0개인지 체크
+                      final totalPhotos = await context
+                          .read<HomeViewModel>()
+                          .dbHelper
+                          .getTotalPhotosCount();
+                      if (totalPhotos == 0) {
+                        // 안내 다이얼로그 없이 바로 키워드 검색 다이얼로그만 띄움
+                        _showSearchDialog();
+                        setState(() => _bottomSelectedIndex = -1);
+                        return;
+                      }
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -358,38 +369,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             // 라벨링 시작
                             await context.read<HomeViewModel>().startLabeling();
                             // 진행률은 위에서 자동으로 감지
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (_) => ValueListenableBuilder<double>(
-                                valueListenable: context
-                                    .read<HomeViewModel>()
-                                    .labelingProgress,
-                                builder: (context, progress, child) {
-                                  return LoadingSpinner(
-                                    progressPercent: progress * 100,
-                                    onClose: () {
-                                      Navigator.of(context, rootNavigator: true)
-                                          .pop();
-                                      setState(() =>
-                                          _isLoadingSpinnerVisible = false);
-                                    },
-                                    onComplete: () {
-                                      if (Navigator.of(context,
-                                              rootNavigator: true)
-                                          .canPop()) {
-                                        Navigator.of(context,
-                                                rootNavigator: true)
-                                            .pop();
-                                      }
-                                      setState(() =>
-                                          _isLoadingSpinnerVisible = false);
-                                      _showSearchDialog();
-                                    },
-                                  );
-                                },
-                              ),
-                            );
                           },
                           onClose: () {
                             Navigator.of(context).pop();

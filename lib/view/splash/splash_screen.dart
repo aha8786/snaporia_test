@@ -5,6 +5,7 @@ import '../../viewmodel/splash_viewmodel.dart';
 import '../../model/permission_status.dart';
 import '../../constants/permission_constants.dart';
 import '../widgets/permission_guide_dialog.dart';
+import 'dart:io' show Platform;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -95,12 +96,21 @@ class _SplashScreenState extends State<SplashScreen>
                     showDialog(
                       context: context,
                       barrierDismissible: false,
-                      builder: (_) => PermissionGuideDialog(
-                        isPermanentlyDenied: vm.isPermanentlyDenied,
-                        onOpenSettings: vm.openSettings,
-                        onRetry: () => vm.retryPermissionRequest(context),
-                        onClose: vm.dismissPermissionGuide,
-                      ),
+                      builder: (_) => Platform.isAndroid
+                          ? PermissionGuideDialogAndroid(
+                              isPermanentlyDenied: vm.isPermanentlyDenied,
+                              onOpenSettings: vm.openSettings,
+                              onRetry: () => vm.retryPermissionRequest(context),
+                              onPermanentDeny: () {
+                                vm.showPermissionGuidePermanent();
+                              },
+                            )
+                          : PermissionGuideDialog(
+                              isPermanentlyDenied: vm.isPermanentlyDenied,
+                              onOpenSettings: vm.openSettings,
+                              onRetry: () => vm.retryPermissionRequest(context),
+                              onClose: vm.dismissPermissionGuide,
+                            ),
                     );
                   }
                 });
