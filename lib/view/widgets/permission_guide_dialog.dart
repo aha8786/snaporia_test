@@ -7,7 +7,7 @@ class PermissionGuideDialog extends StatelessWidget {
   final Future<void> Function() onOpenSettings;
 
   /// 권한 재요청 콜백
-  final VoidCallback onRetry;
+  final Future<void> Function() onRetry;
 
   /// 닫기 콜백
   final VoidCallback onClose;
@@ -51,7 +51,10 @@ class PermissionGuideDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: onClose,
+          onPressed: () {
+            Navigator.of(context).pop();
+            onClose();
+          },
           child: Text(
             '취소',
             style: TextStyle(
@@ -64,9 +67,12 @@ class PermissionGuideDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: isPermanentlyDenied
               ? () async => await onOpenSettings()
-              : onRetry,
+              : () async {
+                  Navigator.of(context).pop();
+                  await onRetry();
+                },
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: const Color(0xFF3578FF),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),

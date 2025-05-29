@@ -49,40 +49,66 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF21D1FF), // #21d1ff
-              Color(0xFF0578FF), // #0578ff
-            ],
-          ),
-        ),
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Center(
-            child: SizedBox(
-              width: 235,
-              height: 89,
-              child: Text(
-                'Snaporia',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'Paperlogy',
-                  fontWeight: FontWeight.w900, // 9 Black
-                  fontSize: 44,
-                  color: Colors.white,
-                  height: 51.82 / 44, // Figma lineHeightPx/fontSize
-                  letterSpacing: 0,
+      body: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF21D1FF), // #21d1ff
+                  Color(0xFF0578FF), // #0578ff
+                ],
+              ),
+            ),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Center(
+                child: SizedBox(
+                  width: 235,
+                  height: 89,
+                  child: Text(
+                    'Snaporia',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Paperlogy',
+                      fontWeight: FontWeight.w900, // 9 Black
+                      fontSize: 44,
+                      color: Colors.white,
+                      height: 51.82 / 44, // Figma lineHeightPx/fontSize
+                      letterSpacing: 0,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          // 권한 안내 다이얼로그 감지 및 표시
+          Consumer<SplashViewModel>(
+            builder: (context, vm, child) {
+              if (vm.shouldShowPermissionGuide) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (ModalRoute.of(context)?.isCurrent ?? true) {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => PermissionGuideDialog(
+                        isPermanentlyDenied: vm.isPermanentlyDenied,
+                        onOpenSettings: vm.openSettings,
+                        onRetry: () => vm.retryPermissionRequest(context),
+                        onClose: vm.dismissPermissionGuide,
+                      ),
+                    );
+                  }
+                });
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
       ),
     );
   }
