@@ -937,4 +937,51 @@ class HomeViewModel extends ChangeNotifier {
 
     return maps.map((map) => PhotoModel.fromMap(map)).toList();
   }
+
+  /// 갤러리에 새로운 사진이 있는지 확인하고 필요시 스캔
+  Future<void> checkAndScanNewPhotos() async {
+    try {
+      // 권한 확인
+      final permitted = await PhotoManager.requestPermissionExtend();
+      if (!permitted.isAuth) {
+        debugPrint('⚠️ 갤러리 접근 권한이 없습니다.');
+        return;
+      }
+
+      // 갤러리 전체 사진 수 확인
+      final int galleryTotalCount = await PhotoManager.getAssetCount();
+      // DB 사진 수 확인
+      final int dbTotalCount = await _dbHelper.getTotalPhotosCount();
+
+      debugPrint('📊 갤러리 사진 수: $galleryTotalCount, DB 사진 수: $dbTotalCount');
+
+      if (galleryTotalCount > dbTotalCount) {
+        // 새로운 사진이 있음 - 추가 스캔 실행
+        debugPrint(
+            '🆕 새로운 사진 ${galleryTotalCount - dbTotalCount}장 발견, 스캔을 시작합니다.');
+        await _dbHelper.scanPhotosAndSaveMeta();
+        await loadPhotos(); // 스캔 후 사진 다시 로드
+
+        // 새로운 사진에 대해 라벨링 시작
+        debugPrint('📸 새로운 사진 스캔 완료, 라벨링 작업을 시작합니다...');
+        await startLabeling();
+      } else if (galleryTotalCount < dbTotalCount) {
+        // 갤러리에서 사진이 삭제됨 - 전체 재스캔 필요
+        debugPrint('🗑️ 갤러리에서 사진이 삭제되었습니다. 전체 재스캔을 시작합니다.');
+        await startScan();
+      } else {
+        // 사진 수가 같음 - 기존 데이터 로드만
+        debugPrint('✅ 갤러리와 DB 사진 수가 일치합니다.');
+        if (photos.isEmpty) {
+          await loadPhotos();
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 새로운 사진 확인 중 오류: $e');
+      // 오류 발생시 기존 데이터라도 로드
+      if (photos.isEmpty) {
+        await loadPhotos();
+      }
+    }
+  }
 }

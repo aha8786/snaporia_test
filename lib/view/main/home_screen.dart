@@ -39,10 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // 이전 스캔 상태 확인 및 초기화
       await viewModel.initialize();
 
-      // 사진이 없는 경우 자동으로 스캔 시작
-      if (viewModel.photos.isEmpty) {
-        await viewModel.startScan();
-      }
+      // 갤러리에 새로운 사진이 있는지 확인하고 필요시 스캔
+      await viewModel.checkAndScanNewPhotos();
     });
 
     // 스크롤 이벤트 리스너 등록
