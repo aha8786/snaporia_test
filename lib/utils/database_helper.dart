@@ -62,7 +62,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4, // 버전 3에서 4로 업데이트
+      version: 5, // 버전 3에서 4로 업데이트
       onCreate: (Database db, int version) async {
         await db.execute('''
           CREATE TABLE photos (
@@ -81,7 +81,8 @@ class DatabaseHelper {
             mime_type TEXT,
             width INTEGER,
             height INTEGER, 
-            labels TEXT
+            labels TEXT,
+            analyzed INTEGER DEFAULT 0
           )
         ''');
 
@@ -219,6 +220,15 @@ class DatabaseHelper {
             'CREATE INDEX idx_labels ON photos(labels)',
           );
         }
+
+        if (oldVersion < 5) {
+          // version 4에서 5로 업그레이드: analyzed 컬럼 추가
+          await db.execute(
+              'ALTER TABLE photos ADD COLUMN analyzed INTEGER DEFAULT 0');
+          // 기존 데이터에도 기본값 0이 들어가도록 업데이트
+          await db
+              .execute('UPDATE photos SET analyzed = 0 WHERE analyzed IS NULL');
+        }
       },
     );
   }
@@ -346,6 +356,12 @@ class DatabaseHelper {
       int processedCount = lastScannedPage * _batchSize;
       final db = await database;
 
+      // 1. DB에 이미 저장된 (path, date_taken) 조합을 모두 가져와 Set으로 만듦
+      final List<Map<String, dynamic>> existRows =
+          await db.rawQuery('SELECT path, date_taken FROM photos');
+      final Set<String> existKeySet =
+          existRows.map((row) => '${row['path']}|${row['date_taken']}').toSet();
+
       // _batchSize 단위로 사진을 가져와서 처리
       for (int offset = lastScannedPage * _batchSize;
           offset < totalCount;
@@ -388,6 +404,13 @@ class DatabaseHelper {
             final file = await asset.file;
             if (file == null) continue;
 
+            final String key =
+                '${file.path}|${asset.createDateTime.toIso8601String()}';
+            if (existKeySet.contains(key)) {
+              // 이미 분석된 사진은 건너뜀
+              continue;
+            }
+
             // 색상 코드에서 Hue 값 계산
             final String colorHex = colors[i];
             String hueNames = '';
@@ -402,6 +425,9 @@ class DatabaseHelper {
               debugPrint('Hue 계산 실패: $e');
             }
 
+            // 디버깅: analyzed 값 출력
+            print(
+                '[DEBUG] insert photo: path=${file.path}, date_taken=${asset.createDateTime.toIso8601String()}, analyzed=0');
             await txn.insert(
               'photos',
               {
@@ -420,6 +446,7 @@ class DatabaseHelper {
                 'height': null,
                 'color': colorHex,
                 'hue': hueNames,
+                'analyzed': 0,
               },
               conflictAlgorithm: ConflictAlgorithm.replace,
             );
@@ -435,6 +462,13 @@ class DatabaseHelper {
       // 스캔 완료
       scanProgress.value = 1.0;
       await resetScanState();
+
+      // 디버깅: 모든 사진의 color, labels, analyzed 값을 출력
+      final allPhotos = await db.query('photos');
+      for (final photo in allPhotos) {
+        print(
+            '[DEBUG] DB 상태: id=${photo['id']}, color=${photo['color']}, labels=${photo['labels']}, analyzed=${photo['analyzed']}');
+      }
     } catch (e) {
       debugPrint('사진 스캔 실패: $e');
       // 진행률은 유지하고 에러만 전파
@@ -450,6 +484,10 @@ class DatabaseHelper {
       final batch = txn.batch();
 
       for (var photo in photos) {
+        // analyzed 필드가 없으면 0으로 추가
+        if (!photo.containsKey('analyzed')) {
+          photo['analyzed'] = 0;
+        }
         batch.insert(
           'photos',
           photo,
@@ -597,7 +635,7 @@ class DatabaseHelper {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT * FROM photos 
-      WHERE labels IS NULL 
+      WHERE labels IS NULL AND analyzed = 0
       ORDER BY taken_at DESC 
       LIMIT ?
     ''', [limit]);
@@ -651,6 +689,29 @@ class DatabaseHelper {
       where: 'path = ?',
       whereArgs: [path],
     );
+  }
+
+  /// 사진의 분석 상태 업데이트
+  Future<void> updatePhotoAnalyzed(int id, {int analyzed = 1}) async {
+    final db = await database;
+    await db.update(
+      'photos',
+      {'analyzed': analyzed},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    // 디버깅: analyzed 값이 1로 업데이트됨을 출력
+    print('[DEBUG] update analyzed: photoId=$id, analyzed=$analyzed');
+  }
+
+  /// DB의 모든 사진 상태(color, labels, analyzed) 출력 (디버깅용)
+  Future<void> printAllPhotoStatus() async {
+    final db = await database;
+    final allPhotos = await db.query('photos');
+    for (final photo in allPhotos) {
+      print(
+          '[DEBUG] DB 상태: id=${photo['id']}, color=${photo['color']}, labels=${photo['labels']}, analyzed=${photo['analyzed']}');
+    }
   }
 }
 

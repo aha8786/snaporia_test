@@ -88,77 +88,85 @@ class _LoadingSpinnerState extends State<LoadingSpinner>
                   builder: (context, constraints) {
                     final double size =
                         min(constraints.maxWidth, constraints.maxHeight) * 0.7;
-                    return SizedBox(
-                      width: size,
-                      height: size,
-                      child: AnimatedBuilder(
-                        animation: _controller,
-                        builder: (context, child) {
-                          final t = _controller.value;
-                          return Stack(
-                            children: [
-                              for (final c in circles)
-                                Positioned(
-                                  left: size / 2 +
-                                      cos(c.angle + t * 2 * pi + c.phase) *
-                                          size *
-                                          c.baseRadius -
-                                      size * c.size / 2 +
-                                      sin(t * 2 * pi + c.phase) *
-                                          size *
-                                          c.animRadius,
-                                  top: size / 2 +
-                                      sin(c.angle + t * 2 * pi + c.phase) *
-                                          size *
-                                          c.baseRadius -
-                                      size * c.size / 2 +
-                                      cos(t * 2 * pi + c.phase) *
-                                          size *
-                                          c.animRadius,
-                                  width: size * c.size,
-                                  height: size * c.size,
-                                  child: Container(
-                                    decoration: const BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          Color(0xFF21D1FF),
-                                          Color(0xFF0578FF)
-                                        ],
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: size,
+                          height: size,
+                          child: AnimatedBuilder(
+                            animation: _controller,
+                            builder: (context, child) {
+                              final t = _controller.value;
+                              return Stack(
+                                children: [
+                                  for (final c in circles)
+                                    Positioned(
+                                      left: size / 2 +
+                                          cos(c.angle + t * 2 * pi + c.phase) *
+                                              size *
+                                              c.baseRadius -
+                                          size * c.size / 2 +
+                                          sin(t * 2 * pi + c.phase) *
+                                              size *
+                                              c.animRadius,
+                                      top: size / 2 +
+                                          sin(c.angle + t * 2 * pi + c.phase) *
+                                              size *
+                                              c.baseRadius -
+                                          size * c.size / 2 +
+                                          cos(t * 2 * pi + c.phase) *
+                                              size *
+                                              c.animRadius,
+                                      width: size * c.size,
+                                      height: size * c.size,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [
+                                              Color(0xFF21D1FF),
+                                              Color(0xFF0578FF)
+                                            ],
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
                                       ),
-                                      shape: BoxShape.circle,
                                     ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        if (widget.progressPercent != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 18.0),
+                            child: AnimatedBuilder(
+                              animation: Listenable.merge([
+                                _controller,
+                                // progressPercent는 외부에서 바뀌므로 setState로 갱신됨
+                              ]),
+                              builder: (context, child) {
+                                return Text(
+                                  '진행률 ${widget.progressPercent!.toStringAsFixed(0)}%',
+                                  style: const TextStyle(
+                                    fontFamily: 'paperlogy',
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                    decoration: TextDecoration.none,
                                   ),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),
               ],
             ),
           ),
-          if (widget.progressPercent != null)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: MediaQuery.of(context).size.height * 0.68,
-              child: Center(
-                child: Text(
-                  '진행률 ${widget.progressPercent!.toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    fontFamily: 'paperlogy',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 16,
-                    color: Colors.black,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
-              ),
-            ),
           // 우측 상단 X 닫기 버튼
           Positioned(
             top: 32,

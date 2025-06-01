@@ -52,6 +52,9 @@ class PhotoModel extends BaseModel {
   /// 이미지 라벨 (쉼표로 구분된 문자열)
   final String? labels;
 
+  /// 분석 여부 (0: 미분석, 1: 분석완료)
+  final int analyzed;
+
   /// 생성자
   const PhotoModel({
     required this.id,
@@ -70,6 +73,7 @@ class PhotoModel extends BaseModel {
     this.width,
     this.height,
     this.labels,
+    this.analyzed = 0,
   });
 
   /// Map에서 모델 객체 생성
@@ -109,6 +113,7 @@ class PhotoModel extends BaseModel {
       width: map['width'] as int?,
       height: map['height'] as int?,
       labels: map['labels'] as String?,
+      analyzed: map['analyzed'] is int ? map['analyzed'] as int : 0,
     );
   }
 
@@ -131,6 +136,7 @@ class PhotoModel extends BaseModel {
       'width': width,
       'height': height,
       'labels': labels,
+      'analyzed': analyzed,
     };
   }
 

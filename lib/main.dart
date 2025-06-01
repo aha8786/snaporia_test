@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'utils/database_helper.dart';
+// import 'utils/database_helper.dart'; // DB 강제 초기화 제거
 import 'view/splash/splash_screen.dart';
 import 'viewmodel/splash_viewmodel.dart';
 import 'viewmodel/main_viewmodel.dart';
@@ -14,16 +14,8 @@ void main() async {
   // 색상 변환 테스트 실행
   TestColorConversion.testColorCodes();
 
-  try {
-    // DB 초기화 (lazy getter 방식으로 database 접근)
-    await DatabaseHelper().database;
-
-    // 애플리케이션 실행
-    runApp(const MyApp());
-  } catch (e) {
-    debugPrint('앱 초기화 중 에러 발생: $e');
-    runApp(const MyApp());
-  }
+  // DB를 강제로 초기화하지 않고, 앱만 실행
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {

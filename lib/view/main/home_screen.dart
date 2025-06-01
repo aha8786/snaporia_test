@@ -77,10 +77,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final double labelingProgress = viewModel.labelingProgress.value;
         final bool isLabelingDone = labelingProgress >= 1.0;
         // 로딩 스피너 100% 완료 시 검색 다이얼로그 띄우기
-        if (_isLoadingSpinnerVisible && isLabelingDone) {
+        if (_isLoadingSpinnerVisible && viewModel.isReadyToSearch) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              Navigator.of(context, rootNavigator: true).pop(); // 로딩 스피너 닫기
+            if (mounted && _isLoadingSpinnerVisible) {
               setState(() => _isLoadingSpinnerVisible = false);
               _showSearchDialog();
             }
@@ -293,21 +292,33 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
           ),
-          body: Column(
+          body: Stack(
             children: [
-              _buildProgressIndicator(),
-              // 기존 태그 바를 Consumer로 감싸서 viewModel 변경 시 즉시 반영
-              if (!viewModel.isSelectionMode)
-                Consumer<HomeViewModel>(
-                  builder: (context, vm, child) => _FilterTagBar(
-                    viewModel: vm,
-                    onReset: () async {
-                      await vm.resetAllFilters();
-                    },
+              Column(
+                children: [
+                  _buildProgressIndicator(),
+                  if (!viewModel.isSelectionMode)
+                    Consumer<HomeViewModel>(
+                      builder: (context, vm, child) => _FilterTagBar(
+                        viewModel: vm,
+                        onReset: () async {
+                          await vm.resetAllFilters();
+                        },
+                      ),
+                    ),
+                  Expanded(
+                    child: _buildBody(),
                   ),
-                ),
-              Expanded(
-                child: _buildBody(),
+                ],
+              ),
+              ValueListenableBuilder<double>(
+                valueListenable: viewModel.labelingProgress,
+                builder: (context, progress, child) {
+                  if (_isLoadingSpinnerVisible) {
+                    return LoadingSpinner(progressPercent: progress * 100);
+                  }
+                  return SizedBox.shrink();
+                },
               ),
             ],
           ),
@@ -343,41 +354,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   onSearchTap: () async {
                     setState(() => _bottomSelectedIndex = 3);
-                    final double labelingProgress =
-                        context.read<HomeViewModel>().labelingProgress.value;
-                    final bool isLabelingDone = labelingProgress >= 1.0;
-                    if (!isLabelingDone) {
-                      // 진행할 항목(사진)이 0개인지 체크
-                      final totalPhotos = await context
-                          .read<HomeViewModel>()
-                          .dbHelper
-                          .getTotalPhotosCount();
-                      if (totalPhotos == 0) {
-                        // 안내 다이얼로그 없이 바로 키워드 검색 다이얼로그만 띄움
-                        _showSearchDialog();
-                        setState(() => _bottomSelectedIndex = -1);
-                        return;
-                      }
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => CustomBottomSheet(
-                          onStart: () async {
-                            Navigator.of(context).pop();
-                            setState(() => _isLoadingSpinnerVisible = true);
-                            // 라벨링 시작
-                            await context.read<HomeViewModel>().startLabeling();
-                            // 진행률은 위에서 자동으로 감지
-                          },
-                          onClose: () {
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                      );
-                    } else {
+                    if (viewModel.isReadyToSearch) {
                       _showSearchDialog();
+                      setState(() => _bottomSelectedIndex = -1);
+                      return;
                     }
+                    // 라벨링 필요: 바텀시트 → (로딩스피너 or 키워드)
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => CustomBottomSheet(
+                        onStart: () async {
+                          Navigator.of(context).pop();
+                          if (context.read<HomeViewModel>().isReadyToSearch) {
+                            _showSearchDialog();
+                          } else {
+                            setState(() => _isLoadingSpinnerVisible = true);
+                            // 라벨링은 이미 백그라운드에서 진행 중이므로 여기서 startLabeling() 호출 X
+                          }
+                        },
+                        onClose: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    );
                     await Future.delayed(const Duration(milliseconds: 300));
                     setState(() => _bottomSelectedIndex = -1);
                   },

@@ -98,6 +98,10 @@ class HomeViewModel extends ChangeNotifier {
   /// 라벨링 작업 진행률
   final ValueNotifier<double> labelingProgress = ValueNotifier<double>(0.0);
 
+  /// 검색 준비 상태 (라벨링이 끝나야 true)
+  bool _isReadyToSearch = true;
+  bool get isReadyToSearch => _isReadyToSearch;
+
   /// 라벨링 작업 중 여부
   bool _isLabeling = false;
   bool get isLabeling => _isLabeling;
@@ -160,6 +164,7 @@ class HomeViewModel extends ChangeNotifier {
     }
     debugPrint('🚀 라벨링 작업 시작');
     _isLabeling = true;
+    _isReadyToSearch = false;
     _shouldStopLabeling = false;
     notifyListeners();
     try {
@@ -190,6 +195,8 @@ class HomeViewModel extends ChangeNotifier {
             print('3️⃣ 라벨 저장 시작: photoId=\\${photo.id}, labels=\\${labels}');
             await _dbHelper.updatePhotoLabels(photo.id, labels);
             print('3️⃣ 라벨 저장 완료: photoId=\\${photo.id}');
+            // 분석 완료 표시
+            await _dbHelper.updatePhotoAnalyzed(photo.id, analyzed: 1);
             processedCount++;
             labelingProgress.value = processedCount / totalPhotos;
             debugPrint(
@@ -202,8 +209,11 @@ class HomeViewModel extends ChangeNotifier {
       }
     } finally {
       _isLabeling = false;
+      _isReadyToSearch = true;
       notifyListeners();
       debugPrint('🏁 라벨링 작업 종료');
+      // 라벨링이 모두 끝난 후 DB 상태 출력
+      await _dbHelper.printAllPhotoStatus();
     }
   }
 
@@ -320,24 +330,17 @@ class HomeViewModel extends ChangeNotifier {
   /// 초기화 메서드
   Future<void> initialize() async {
     try {
-      // 이전 스캔 상태 확인
-      final prefs = await SharedPreferences.getInstance();
-      final isScanning = prefs.getBool('is_scanning') ?? false;
+      // DB에 이미 저장된 사진이 있는지 확인
+      final bool photosExist = await _dbHelper.hasPhotos();
+      _isInitialized = true;
+      notifyListeners();
 
-      if (isScanning) {
-        // 중단된 스캔이 있다면 자동으로 재개
-        _isInitialized = true;
-        notifyListeners();
-        await resumeScan();
+      if (photosExist) {
+        // 이미 데이터가 있으면 그대로 불러온다
+        await loadPhotos();
       } else {
-        // 스캔 완료된 상태라면 사진 존재 여부 확인
-        final bool photosExist = await _dbHelper.hasPhotos();
-        _isInitialized = true;
-        notifyListeners();
-
-        if (photosExist) {
-          await loadPhotos();
-        }
+        // 새로 분석할 사진이 없으면 분석을 생략한다 (자동 분석/스캔 생략)
+        // 필요시 사용자가 명시적으로 분석을 시작할 수 있도록 한다
       }
     } catch (e) {
       debugPrint('초기화 오류: $e');
